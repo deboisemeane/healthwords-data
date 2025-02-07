@@ -71,8 +71,17 @@ user_engagement AS (
     AND ep.key = 'engagement_time_msec'  -- Filter for engagement time parameter
     AND (su.signup_time IS NULL OR e.event_timestamp <= su.signup_time) -- Pre-signup or all for non-signups
   GROUP BY e.user_pseudo_id
-)
+),
 
+-- Find the user's first page_view page_location as the landing page.
+first_page_location AS (
+    SELECT
+        user_pseudo_id,
+        FIRST_VALUE((SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location')) OVER (PARTITION BY user_pseudo_id ORDER BY event_timestamp) AS first_page_location
+    FROM `caidr-2.analytics_228783167.events_*`
+    WHERE event_name = 'page_view'
+        AND _TABLE_SUFFIX BETWEEN start_date AND end_date
+)
 
 -- Select signed-up label and relevant features for classification (Final Query)
 SELECT
@@ -92,15 +101,24 @@ SELECT
     END AS first_traffic_channel_group,
     -- Explore and Shop pageviews
     COALESCE(ep.explore_page_views, 0) AS explore_page_views,  -- Handle potential NULLs
-    COALESCE(ep.shop_page_views, 0) AS shop_page_views
+    COALESCE(ep.shop_page_views, 0) AS shop_page_views,
+    -- Landing page categorisation as Home, Explore, Shop, Chat, or Other
+    CASE
+        WHEN REGEXP_EXTRACT(p.first_page_location, r'^https://www\.healthwords\.ai[^?]+') = 'https://www.healthwords.ai/' THEN 'Home'
+        WHEN p.first_page_location LIKE '%/explore%' THEN 'Explore'
+        WHEN p.first_page_location LIKE '%/shop%' THEN 'Shop'
+        WHEN p.first_page_location LIKE '%/chat%' THEN 'Chat'
+        ELSE 'Other'
+    END AS landing_page_category
 FROM `caidr-2.analytics_228783167.events_*` e
 LEFT JOIN user_signup su ON CAST(e.user_pseudo_id as STRING) = su.user_pseudo_id
 LEFT JOIN user_sessions s ON CAST(e.user_pseudo_id as STRING) = s.user_pseudo_id 
 LEFT JOIN first_traffic f ON CAST(e.user_pseudo_id as STRING) = f.user_pseudo_id
 LEFT JOIN explore_shop_pageviews ep ON CAST(e.user_pseudo_id as STRING) = ep.user_pseudo_id
 LEFT JOIN user_engagement ue ON CAST(e.user_pseudo_id as STRING) = ue.user_pseudo_id
+LEFT JOIN first_page_location p ON CAST(e.user_pseudo_id as STRING) = p.user_pseudo_id
 -- Exclude users who triggered any event before the analysis period
 WHERE e.user_pseudo_id NOT IN (SELECT user_pseudo_id FROM previous_events)
     AND ((su.signup_time IS NOT NULL AND e.event_timestamp <= su.signup_time) OR (su.signup_time IS NULL)) 
     AND e._TABLE_SUFFIX BETWEEN start_date AND end_date
-GROUP BY e.user_pseudo_id, first_traffic_channel_group, explore_page_views, shop_page_views, ue.total_engagement_msec; -- Group by all non-aggregated columns
+GROUP BY e.user_pseudo_id, first_traffic_channel_group, explore_page_views, shop_page_views, ue.total_engagement_msec, p.first_page_location; -- Group by all non-aggregated columns
