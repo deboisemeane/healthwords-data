@@ -29,7 +29,8 @@ WITH categorized_events AS (
       'marketplace_select_specialist',
       'marketplace_payment_completed',
       'Product_Click_AI_Conversation',
-      'Article_Click_AI_Conversation'
+      'Article_Click_AI_Conversation',
+      'click_on_search_result'
     )
 ),
 -- Get each user’s earliest signup session (if any)
@@ -101,6 +102,7 @@ prepared_events AS (
       WHEN event_name = 'page_view' THEN 
         CASE 
           WHEN REGEXP_EXTRACT(page_location, r'^https://www\.healthwords\.ai[^?]+') = 'https://www.healthwords.ai/' THEN 'Home'
+          WHEN REGEXP_EXTRACT(page_location, r'^https://www\.healthwords\.ai[^?]+') = 'https://www.healthwords.ai/speak-to-a-doctor' THEN 'Speak-to-a-Doctor'
           WHEN page_location LIKE '%/explore%' THEN 'Explore'
           WHEN page_location LIKE '%/shop%' THEN 'Shop'
           WHEN page_location LIKE '%/chat%' THEN 'Chat'
@@ -116,6 +118,7 @@ prepared_events AS (
         WHEN event_name = 'page_view' THEN 
           CASE 
             WHEN REGEXP_EXTRACT(page_location, r'^https://www\.healthwords\.ai[^?]+') = 'https://www.healthwords.ai/' THEN 'Home'
+            WHEN REGEXP_EXTRACT(page_location, r'^https://www\.healthwords\.ai[^?]+') = 'https://www.healthwords.ai/speak-to-a-doctor' THEN 'Speak-to-a-Doctor'
             WHEN page_location LIKE '%/explore%' THEN 'Explore'
             WHEN page_location LIKE '%/shop%' THEN 'Shop'
             WHEN page_location LIKE '%/chat%' THEN 'Chat'
