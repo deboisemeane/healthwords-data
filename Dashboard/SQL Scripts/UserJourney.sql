@@ -29,8 +29,8 @@ WITH categorized_events AS (
       'marketplace_select_specialist',
       'marketplace_payment_completed',
       'Product_Click_AI_Conversation',
-      'Article_Click_AI_Conversation',
-      'click_on_search_result'
+      'click_on_search_result',
+      'clickOnSearchResult_AI_Conversation'
     )
 ),
 -- Get each user’s earliest signup session (if any)
